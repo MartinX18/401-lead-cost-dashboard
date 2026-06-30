@@ -1,0 +1,659 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lead Cost Command Center · 401 Auto</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.0/dist/chart.umd.js" integrity="sha384-iU8HYtnGQ8Cy4zl7gbNMOhsDTTKX02BTXptVP/vqAWIaTfM7isw76iyZCsjL2eVi" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root { color-scheme: light; }
+* { box-sizing: border-box; }
+body { margin:0; background:#f5f6f8; color:#1a1d23;
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; font-size:14px; line-height:1.45; }
+.wrap { max-width:1180px; margin:0 auto; padding:20px 18px 70px; }
+h1 { font-size:20px; margin:0 0 2px; }
+.sub { color:#6b7280; font-size:12.5px; margin:0 0 16px; }
+.card { background:#fff; border:1px solid #e5e7eb; border-radius:10px; padding:16px; margin-bottom:16px; }
+.card h2 { font-size:13px; text-transform:uppercase; letter-spacing:.04em; color:#6b7280; margin:0 0 12px; }
+label { display:block; font-size:11.5px; color:#6b7280; margin-bottom:3px; font-weight:600; }
+input, button { font-size:14px; font-family:inherit; }
+input { border:1px solid #d1d5db; border-radius:7px; padding:7px 9px; background:#fff; color:#1a1d23; }
+input:focus { outline:2px solid #2563eb33; border-color:#2563eb; }
+button { border:none; border-radius:7px; padding:8px 14px; background:#2563eb; color:#fff; font-weight:600; cursor:pointer; }
+button.ghost { background:#fff; color:#374151; border:1px solid #d1d5db; }
+button.ghost:hover { background:#f3f4f6; }
+.kpis { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:12px; }
+.kpi { background:#fff; border:1px solid #e5e7eb; border-radius:10px; padding:15px 16px; }
+.kpi .v { font-size:24px; font-weight:700; letter-spacing:-.02em; }
+.kpi .l { font-size:11.5px; color:#6b7280; margin-top:2px; }
+.kpi .d { font-size:11.5px; font-weight:700; margin-top:3px; }
+.kpi.hero { background:#eff6ff; border-color:#bfdbfe; }
+.kpi.hero .v { color:#1d4ed8; font-size:28px; }
+.kpi.green .v { color:#059669; }
+.kpi.flag .v { color:#b91c1c; }
+.up { color:#b91c1c; } .down { color:#059669; } .flat { color:#9ca3af; }
+.upg { color:#059669; } .downb { color:#b91c1c; }
+table { width:100%; border-collapse:collapse; font-size:13px; }
+th, td { text-align:right; padding:8px 10px; border-bottom:1px solid #eef0f2; white-space:nowrap; }
+th:first-child, td:first-child { text-align:left; }
+th { font-size:11px; text-transform:uppercase; letter-spacing:.03em; color:#6b7280; font-weight:600; cursor:pointer; user-select:none; }
+tbody tr { cursor:pointer; }
+tbody tr:hover { background:#eef4ff; }
+tr.broken td { background:#fef2f2; color:#7f1d1d; }
+tfoot td { font-weight:700; border-top:2px solid #e5e7eb; border-bottom:none; }
+.chartbox { position:relative; height:300px; }
+.row2 { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+@media (max-width:820px){ .row2 { grid-template-columns:1fr; } }
+.flex { display:flex; gap:14px; align-items:center; flex-wrap:wrap; }
+.spacer { flex:1; }
+.seg { display:inline-flex; border:1px solid #d1d5db; border-radius:7px; overflow:hidden; }
+.seg button { background:#fff; color:#374151; border-radius:0; border-right:1px solid #d1d5db; padding:6px 12px; font-weight:600; }
+.seg button:last-child { border-right:none; }
+.seg button.on { background:#2563eb; color:#fff; }
+.badge { display:inline-block; font-size:10px; font-weight:700; padding:2px 6px; border-radius:5px; }
+.badge.usd { background:#fef3c7; color:#92400e; font-size:9.5px; margin-left:5px; vertical-align:middle; }
+.badge.ok { background:#dcfce7; color:#15803d; }
+.badge.broken { background:#fee2e2; color:#b91c1c; }
+.badge.nophone { background:#ffedd5; color:#9a3412; }
+.badge.low { background:#fef9c3; color:#854d0e; }
+.note { font-size:12px; color:#6b7280; background:#fffbeb; border:1px solid #fde68a; border-radius:8px; padding:9px 12px; margin-top:10px; }
+.banner { border-radius:8px; padding:10px 13px; font-size:13px; margin-bottom:14px; display:none; }
+.banner.err { background:#fef2f2; border:1px solid #fecaca; color:#991b1b; display:block; }
+.banner.load { background:#eff6ff; border:1px solid #bfdbfe; color:#1e40af; display:block; }
+.banner.flag { background:#fff7ed; border:1px solid #fed7aa; color:#9a3412; display:block; }
+.muted { color:#9ca3af; }
+.fxwrap { display:flex; align-items:center; gap:6px; }
+.fxwrap input { width:74px; }
+.dot { display:inline-block; width:8px; height:8px; border-radius:50%; background:#059669; margin-right:5px; }
+.spin { display:inline-block; width:13px; height:13px; border:2px solid #bfdbfe; border-top-color:#2563eb; border-radius:50%; animation:s .7s linear infinite; vertical-align:-2px; margin-right:6px;}
+@keyframes s { to { transform:rotate(360deg); } }
+.hint { font-size:11px; color:#9ca3af; font-weight:400; text-transform:none; letter-spacing:0; }
+/* modal */
+.overlay { position:fixed; inset:0; background:rgba(15,23,42,.45); display:none; align-items:flex-start; justify-content:center; z-index:50; padding:40px 16px; overflow:auto; }
+.overlay.on { display:flex; }
+.modal { background:#fff; border-radius:12px; width:100%; max-width:760px; box-shadow:0 20px 60px rgba(0,0,0,.25); }
+.modal-h { display:flex; align-items:center; gap:10px; padding:16px 18px; border-bottom:1px solid #eef0f2; }
+.modal-h h3 { margin:0; font-size:16px; }
+.modal-b { padding:16px 18px; }
+.x { margin-left:auto; background:#fff; color:#6b7280; border:1px solid #d1d5db; border-radius:7px; padding:5px 10px; cursor:pointer; font-weight:700; }
+.mini { display:flex; gap:16px; flex-wrap:wrap; margin-bottom:12px; }
+.mini div { font-size:12px; color:#6b7280; } .mini b { display:block; font-size:18px; color:#1a1d23; }
+</style>
+</head>
+<body>
+<div id="login" style="max-width:380px;margin:80px auto;padding:26px;background:#fff;border:1px solid #e5e7eb;border-radius:12px">
+  <h1 style="font-size:18px;margin:0 0 4px">401 Auto · Lead Cost</h1>
+  <p style="color:#6b7280;font-size:13px;margin:0 0 16px">Marketing team sign-in</p>
+  <input id="login-email" type="email" placeholder="you@401auto.ca" style="width:100%;padding:9px;border:1px solid #d1d5db;border-radius:7px;font-size:14px">
+  <button id="login-btn" style="width:100%;margin-top:10px;padding:9px;background:#2563eb;color:#fff;border:none;border-radius:7px;font-weight:600;cursor:pointer">Email me a login link</button>
+  <p id="login-msg" style="font-size:12px;color:#6b7280;margin-top:10px"></p>
+</div>
+<div class="wrap" id="wrap" style="display:none">
+  <h1>Lead Cost Command Center</h1>
+  <p class="sub">401 Auto Group · <b>live from Google Ads</b> via Supermetrics · leads = form + phone · spend in CAD · click any store for campaign detail</p>
+
+  <div id="banner" class="banner load"><span class="spin"></span>Loading dashboard data…</div>
+  <div id="flagbanner" class="banner flag" style="display:none"></div>
+
+  <div class="card">
+    <div class="flex">
+      <div><label>Region</label>
+        <div class="seg" id="region-seg">
+          <button data-r="ca" class="on">Canada</button>
+          <button data-r="us">US</button>
+          <button data-r="all">All (CAD)</button>
+        </div>
+      </div>
+      <div><label>Period (vs previous equal window)</label>
+        <div class="seg" id="period-seg">
+          <button data-p="30" class="on">30d</button>
+          <button data-p="60">60d</button>
+          <button data-p="90">90d</button>
+          <button data-p="mtd">MTD</button>
+        </div>
+      </div>
+      <div><label>USD → CAD rate <span class="muted" style="font-weight:400">· only used in “All”</span></label>
+        <div class="fxwrap"><input type="number" id="fx" step="0.001" min="0.5" value="1.37"><span class="muted" id="fx-note" style="font-size:11px">for USD stores</span></div>
+      </div>
+      <div class="spacer"></div>
+      <div style="text-align:right"><label>Amounts in <span id="cur-ind">CAD</span></label><span id="freshness" class="muted" style="font-size:12px">—</span></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2 style="margin-bottom:12px">Headline <span id="kpi-period" class="muted"></span></h2>
+    <div class="kpis" id="kpis"></div>
+    <div class="note">
+      Arrows compare this period to the <b>previous equal-length window</b>. For cost-per-lead, <span class="down">green ↓</span> is good (cheaper); for leads, <span class="upg">green ↑</span> is good (more). <b>Lead rate</b> = leads ÷ clicks (tracking-health check). <b>Click a store row</b> to see its campaigns.
+    </div>
+  </div>
+
+  <div class="row2">
+    <div class="card"><h2>Daily leads &amp; spend</h2><div class="chartbox"><canvas id="dailyChart"></canvas></div></div>
+    <div class="card"><h2>Cost per lead by store <span class="hint">· excl. broken tracking</span></h2><div class="chartbox"><canvas id="cplChart"></canvas></div></div>
+  </div>
+
+  <div class="card">
+    <h2>By store <span id="store-period-lbl" class="muted"></span> · <span class="hint">sorted by cost/lead · click a row to drill in</span></h2>
+    <table id="store-table">
+      <thead><tr>
+        <th data-k="store">Store</th>
+        <th data-k="spend">Spend</th>
+        <th data-k="leads">Leads</th>
+        <th data-k="rate">Lead rate</th>
+        <th data-k="cpl">Cost / Lead</th>
+        <th data-k="cplDelta">vs prev</th>
+        <th data-k="track">Tracking</th>
+      </tr></thead>
+      <tbody id="store-body"></tbody>
+      <tfoot id="store-foot"></tfoot>
+    </table>
+    <div class="flex" style="margin-top:12px">
+      <span class="muted" style="font-size:11.5px">Tracking: <span class="badge ok">OK</span> · <span class="badge low">low</span> · <span class="badge nophone">no phone</span> · <span class="badge broken">broken</span></span>
+      <div class="spacer"></div><button class="ghost" id="export-btn">Export CSV</button>
+    </div>
+  </div>
+</div>
+
+  <div class="card">
+    <h2>Where to spend more <span class="hint">· Search budget-lost impression share, last 30 days</span></h2>
+    <div id="opp-summary" class="note" style="margin-top:0;margin-bottom:12px">—</div>
+    <table id="opp-table">
+      <thead><tr>
+        <th>Store</th><th>Cost / Lead</th><th>Search IS</th><th>Lost to budget</th><th>Lost to rank</th><th style="text-align:left">Read</th>
+      </tr></thead>
+      <tbody id="opp-body"></tbody>
+    </table>
+    <div class="note" style="margin-top:12px">
+      <b>Search-network only.</b> This is the share of <i>Search</i> ad impressions you missed because the daily budget ran out (<b>lost to budget</b>) vs. because of ad rank/bid (<b>lost to rank</b>). PMax and Display spend isn’t included, and stores running no search campaigns show “no search data.” A store that’s <b>capped by budget and has at-or-below-average cost per lead</b> is the clearest case to raise the daily budget — you’d likely buy more leads at a similar price. “Lost to rank” means more budget won’t help; that needs bid/quality/landing-page work instead.
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Why is cost-per-lead high? <span class="hint">· driver split, this period</span></h2>
+    <div id="driver-summary" class="note" style="margin-top:0;margin-bottom:12px">—</div>
+    <table id="driver-table">
+      <thead><tr><th>Store</th><th>Cost / Lead</th><th>Avg CPC</th><th>Lead conv. rate</th><th style="text-align:left">Diagnosis</th></tr></thead>
+      <tbody id="driver-body"></tbody>
+    </table>
+    <div class="note" style="margin-top:12px">Cost per lead = <b>CPC ÷ lead-conversion-rate</b>. <b>Bidding</b> = clicks are pricey (CPC well above group avg) → bid/competition problem. <b>Conversion</b> = clicks come in but the site/offer rarely turns them into a lead (conv rate well below group) → landing-page/offer problem. Broken-tracking stores are skipped (their conv rate isn't real).</div>
+  </div>
+
+  <div class="row2">
+    <div class="card">
+      <h2>Device split <span class="hint">· last 30 days, current region</span></h2>
+      <table id="device-table"><thead><tr><th>Device</th><th>Spend</th><th>Conv.</th><th>Cost / conv.</th><th>Share</th></tr></thead><tbody id="device-body"></tbody></table>
+      <div class="note" style="margin-top:10px">Conv. here = all Google-tracked conversions (not just form+phone). Use the cost/conv gaps to set <b>device bid adjustments</b> — e.g. trim spend where a device converts far worse.</div>
+    </div>
+    <div class="card">
+      <h2>Day of week <span class="hint">· last 30 days, current region</span></h2>
+      <table id="dow-table"><thead><tr><th>Day</th><th>Spend</th><th>Conv.</th><th>Cost / conv.</th></tr></thead><tbody id="dow-body"></tbody></table>
+      <div class="note" style="margin-top:10px">Cheapest-converting days are candidates to <b>shift budget toward</b>; the priciest are daypart-bid-down candidates.</div>
+    </div>
+  </div>
+
+<div class="overlay" id="overlay">
+  <div class="modal">
+    <div class="modal-h"><h3 id="m-title">Store</h3><span id="m-track"></span><button class="x" id="m-close">✕</button></div>
+    <div class="modal-b" id="m-body"></div>
+  </div>
+</div>
+
+<script>
+const UUID="4d773bb0-d09c-4292-a4e8-7fcb51e0e2f3";
+const T_QUERY="mcp__"+UUID+"__data_query";
+const T_RESULT="mcp__"+UUID+"__get_async_query_results";
+const T_ACCOUNTS="mcp__"+UUID+"__accounts_discovery";
+const FALLBACK_STORES=[
+  {id:"9992560037",name:"Baywest Mitsubishi"},{id:"8560823303",name:"Baywest Nissan"},
+  {id:"6196479844",name:"FMM"},{id:"4514941633",name:"Kingston Kia"},
+  {id:"6381586144",name:"NorthBay Chrysler"},{id:"2978245611",name:"Pembroke Chrysler"},
+  {id:"5571570927",name:"Pembroke Nissan"},{id:"2261982329",name:"Peterborough Hyundai"},
+  {id:"9507706931",name:"Renfrew Chrysler"},{id:"2746634894",name:"Simcoe VW"},
+  {id:"5380808144",name:"Stratford Hyundai"},{id:"9732970900",name:"Sudbury Mitsubishi"},
+  {id:"5276885547",name:"Sunny Mitsubishi"},{id:"3840389574",name:"TILLSONBURG KIA ON"},
+  {id:"8592197103",name:"Windsor Hyundai"},{id:"1110830723",name:"Woodstock Nissan"}
+];
+let STORES=[], IDS=[], NAMES=[], ID_BY_NAME={};
+function setStores(arr){ STORES=arr; IDS=STORES.map(s=>s.id); NAMES=STORES.map(s=>s.name); ID_BY_NAME={}; STORES.forEach(s=>ID_BY_NAME[s.name]=s.id); }
+setStores(FALLBACK_STORES);
+const LEAD_FILTER="ConversionCategory == Submit lead form OR ConversionCategory == Phone call lead";
+const PHONE_FILTER="ConversionCategory == Phone call lead";
+const BROKEN_RATE=0.01, LOW_RATE=0.015, MIN_CLICKS=200;
+
+const FXKEY="LCD4_FX", PKEY="LCD4_PERIOD", RKEY="LCD4_REGION";
+const $=id=>document.getElementById(id);
+let fx=parseFloat(localStorage.getItem(FXKEY))||1.37;
+let period=localStorage.getItem(PKEY)||"30";
+let region=localStorage.getItem(RKEY)||"ca";
+let spendRows=[], leadMap={}, phoneMap={}, storeCurrency={}, isMap={}, deviceRows=[], dowRows=[];
+let storeSort={k:"cpl",dir:-1};
+let dailyChart,cplChart;
+const drillCache={};
+
+// negative-keyword bucketing
+const NEG_RULES=[
+  {key:"market", label:"Marketplaces & 3rd-party / other sellers", safe:true,
+    patt:/\b(carvana|carmax|autotrader|cars ?\.? ?com|cargurus|car gurus|kbb|kelley blue book|edmunds|truecar|true car|craigslist|marketplace|ebay|hertz|enterprise|avis|budget rental|goodwill|donat|auction|impound|repo|repossess|bank owned|government|seized|police)\b/i},
+  {key:"junk", label:"Jobs / service / parts / pure research", safe:true,
+    patt:/\b(job|jobs|career|careers|hiring|salary|employ|oil change|service|repair|parts|tire|tires|recall|warranty|hours|direction|address|complaint|review|wiki|how much|what is|whats|manual|tire size|interior|release date|specs|vs |reliability|problems|for free|free car)\b/i},
+  {key:"subprime", label:"No-money / subprime — REVIEW before adding (may be wanted)", safe:false,
+    patt:/\b(no money|bad credit|no credit|zero down|0 down|\$0 down|no down ?payment|rent to own|rent-to-own|buy here pay here|bhph|ssi|ssdi|low income|fixed income|single mom|guaranteed approval|guaranteed credit|no deposit|disability|welfare|broke|99 down|199 a month|200 a month|150 per month)\b/i},
+];
+function categorize(t){ for(const r of NEG_RULES){ if(r.patt.test(t)) return r.key; } return "other"; }
+window.copyNeg=(id,btn)=>{ const ta=document.getElementById(id); if(!ta) return;
+  const txt=ta.value; const done=()=>{ const o=btn.textContent; btn.textContent="Copied ✓"; setTimeout(()=>btn.textContent=o,1400); };
+  if(navigator.clipboard&&navigator.clipboard.writeText){ navigator.clipboard.writeText(txt).then(done).catch(()=>{ta.select();document.execCommand&&document.execCommand("copy");done();}); }
+  else { ta.select(); try{document.execCommand("copy");}catch(e){} done(); } };
+
+const fmt$=n=>n==null||isNaN(n)||!isFinite(n)?"—":"$"+Math.round(n).toLocaleString();
+const fmt$2=n=>n==null||isNaN(n)||!isFinite(n)?"—":"$"+n.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2});
+const fmtN=n=>n==null||isNaN(n)?"—":(Math.round(n*10)/10).toLocaleString();
+const pct=n=>n==null||isNaN(n)||!isFinite(n)?"—":(n*100).toFixed(2)+"%";
+const today=()=>new Date().toISOString().slice(0,10);
+function shift(ds,n){const d=new Date(ds+"T00:00:00");d.setDate(d.getDate()+n);return d.toISOString().slice(0,10);}
+function daysAgo(n){return shift(today(),-n);}
+function monthStart(){const d=new Date();return new Date(d.getFullYear(),d.getMonth(),1).toISOString().slice(0,10);}
+function dBetween(a,b){return Math.round((new Date(b)-new Date(a))/86400000);}
+function bounds(){
+  const end=today(); let curStart,priorStart,priorEnd,L;
+  if(period==="mtd"){ curStart=monthStart(); L=dBetween(curStart,end)+1; priorEnd=curStart; priorStart=shift(curStart,-L); }
+  else { L=parseInt(period,10); curStart=daysAgo(L); priorEnd=curStart; priorStart=daysAgo(2*L); }
+  return {curStart,priorStart,priorEnd,L};
+}
+function periodLabel(){return period==="mtd"?"month to date":"last "+period+" days";}
+function toCAD(c,cur){return cur==="USD"?c*fx:c;}
+function storeRegion(s){ return storeCurrency[s]==="USD"?"us":"ca"; }
+function inRegion(s){ return region==="all" || storeRegion(s)===region; }
+function regionCur(){ return region==="us"?"USD":"CAD"; }
+function amt(c,cur){ return region==="all"?toCAD(c,cur):c; }
+function rowInRegion(cur){ return region==="all" || (region==="us"?cur==="USD":cur!=="USD"); }
+function esc(s){return String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));}
+
+const SB_URL="https://rexhqmnftgrnhuvzgxbo.supabase.co";
+const SB_ANON="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJleGhxbW5mdGdybmh1dnpneGJvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI4MjE5NDYsImV4cCI6MjA5ODM5Nzk0Nn0.-U9ipSLc4mdzp750J5E8bsYh0Zf0nEZ6OLpjASoSGe0";
+const sb=window.supabase.createClient(SB_URL,SB_ANON);
+let campByAcct={}, termByAcct={}, dataAsOf="";
+
+async function sbAll(table,cols){
+  let from=0,page=1000,out=[];
+  while(true){
+    const {data,error}=await sb.from(table).select(cols).range(from,from+page-1);
+    if(error) throw new Error(table+": "+error.message);
+    out=out.concat(data||[]);
+    if(!data||data.length<page) break; from+=page;
+  }
+  return out;
+}
+async function loadAll(){
+  const [stores,daily,is,dev,camp,terms,refresh]=await Promise.all([
+    sbAll("stores","account_id,store_name,currency"),
+    sbAll("daily_metrics","date,account_id,cost,clicks,lead_conversions,phone_lead_conversions"),
+    sbAll("impression_share","account_id,search_is,budget_lost,rank_lost"),
+    sbAll("device_metrics","account_id,device,currency,cost,clicks,conversions"),
+    sbAll("campaign_metrics","account_id,campaign,cost,clicks,lead_conversions"),
+    sbAll("search_terms","account_id,term,cost,clicks,conversions"),
+    sb.from("refresh_log").select("last_run").eq("id",1).maybeSingle().then(r=>r.data)
+  ]);
+  const nameById={},curById={};
+  stores.forEach(s2=>{ nameById[s2.account_id]=s2.store_name; curById[s2.account_id]=s2.currency; });
+  setStores(stores.map(s2=>({id:s2.account_id,name:s2.store_name})));
+  storeCurrency={}; stores.forEach(s2=>{ storeCurrency[s2.store_name]=s2.currency; });
+  spendRows=[]; leadMap={}; phoneMap={};
+  daily.forEach(r=>{ const store=nameById[r.account_id]||r.account_id, cur=curById[r.account_id];
+    spendRows.push({store,date:r.date,currency:cur,cost:+r.cost||0,clicks:+r.clicks||0});
+    leadMap[store+"|"+r.date]=(leadMap[store+"|"+r.date]||0)+(+r.lead_conversions||0);
+    phoneMap[store+"|"+r.date]=(phoneMap[store+"|"+r.date]||0)+(+r.phone_lead_conversions||0); });
+  isMap={};
+  is.forEach(r=>{ const store=nameById[r.account_id]; if(store) isMap[store]={imprShare:r.search_is,budgetLost:r.budget_lost,rankLost:r.rank_lost}; });
+  deviceRows=dev.map(r=>({device:r.device,currency:r.currency,cost:+r.cost||0,clicks:+r.clicks||0,conv:+r.conversions||0}));
+  const DOWN=["0 Sunday","1 Monday","2 Tuesday","3 Wednesday","4 Thursday","5 Friday","6 Saturday"], c30=daysAgo(30), dA={};
+  daily.forEach(r=>{ if(r.date<c30)return; const cur=curById[r.account_id], dn=new Date(r.date+"T00:00:00").getDay(), dow=DOWN[dn], k=dow+"|"+cur;
+    (dA[k] ||= {dow,currency:cur,cost:0,clicks:0,conv:0}); dA[k].cost+=+r.cost||0; dA[k].clicks+=+r.clicks||0; dA[k].conv+=+r.lead_conversions||0; });
+  dowRows=Object.values(dA);
+  campByAcct={}; termByAcct={};
+  camp.forEach(r=>{ (campByAcct[r.account_id] ||= []).push({camp:r.campaign,cost:+r.cost||0,clicks:+r.clicks||0,leads:+r.lead_conversions||0}); });
+  terms.forEach(r=>{ (termByAcct[r.account_id] ||= []).push({term:r.term,cost:+r.cost||0,clicks:+r.clicks||0,conv:+r.conversions||0}); });
+  dataAsOf=refresh&&refresh.last_run?refresh.last_run:"";
+}
+
+function aggByStore(){
+  const {curStart,priorStart,priorEnd,L}=bounds();
+  const m={};
+  NAMES.filter(inRegion).forEach(n=>m[n]={store:n,spend:0,leads:0,clicks:0,phone:0,pSpend:0,pLeads:0,active:false});
+  spendRows.forEach(r=>{ if(!inRegion(r.store))return; const cad=amt(r.cost,r.currency); const o=(m[r.store] ||= {store:r.store,spend:0,leads:0,clicks:0,phone:0,pSpend:0,pLeads:0,active:false});
+    if(r.date>=curStart){ o.spend+=cad; o.clicks+=r.clicks; if(r.cost>0||r.clicks>0)o.active=true; }
+    else if(r.date>=priorStart&&r.date<priorEnd){ o.pSpend+=cad; } });
+  Object.keys(leadMap).forEach(k=>{ const [s,d]=k.split("|"); if(!inRegion(s))return; const o=(m[s] ||= {store:s,spend:0,leads:0,clicks:0,phone:0,pSpend:0,pLeads:0,active:true});
+    if(d>=curStart) o.leads+=leadMap[k]; else if(d>=priorStart&&d<priorEnd) o.pLeads+=leadMap[k]; });
+  Object.keys(phoneMap).forEach(k=>{ const [s,d]=k.split("|"); if(!inRegion(s))return; if(d>=curStart&&m[s]) m[s].phone+=phoneMap[k]; });
+  return Object.values(m).map(s=>{
+    const rate=s.clicks?s.leads/s.clicks:null;
+    let track="ok";
+    if(!s.active) track="idle";
+    else if(s.clicks>=MIN_CLICKS&&rate!=null&&rate<BROKEN_RATE) track="broken";
+    else if(s.phone===0&&s.leads>0) track="nophone";
+    else if(s.clicks>=MIN_CLICKS&&rate!=null&&rate<LOW_RATE) track="low";
+    const cpl=s.leads?s.spend/s.leads:null;
+    const pCpl=s.pLeads?s.pSpend/s.pLeads:null;
+    return {...s, rate, track, broken:track==="broken", cpl, pCpl,
+      cplDelta:(cpl!=null&&pCpl!=null&&pCpl>0)?(cpl-pCpl)/pCpl:null,
+      leadsDelta:(s.pLeads>0)?(s.leads-s.pLeads)/s.pLeads:null };
+  });
+}
+
+function arrow(delta, goodWhenDown){
+  if(delta==null||!isFinite(delta)) return '<span class="flat">—</span>';
+  const up=delta>0.001, down=delta<-0.001;
+  const cls = up ? (goodWhenDown?"up":"upg") : down ? (goodWhenDown?"down":"downb") : "flat";
+  const sym = up?"▲":down?"▼":"—";
+  return `<span class="${cls}">${sym} ${Math.abs(delta*100).toFixed(0)}%</span>`;
+}
+
+function render(){
+  $("cur-ind").textContent=regionCur();
+  $("kpi-period").textContent="· "+periodLabel()+" vs previous";
+  $("store-period-lbl").textContent="· "+periodLabel();
+  const list=aggByStore();
+  const t=list.reduce((a,s)=>{a.spend+=s.spend;a.leads+=s.leads;a.clicks+=s.clicks;a.pSpend+=s.pSpend;a.pLeads+=s.pLeads;return a;},{spend:0,leads:0,clicks:0,pSpend:0,pLeads:0});
+  const cpl=t.leads?t.spend/t.leads:null, pCpl=t.pLeads?t.pSpend/t.pLeads:null;
+  const cplD=(cpl!=null&&pCpl)?(cpl-pCpl)/pCpl:null;
+  const leadsD=t.pLeads?(t.leads-t.pLeads)/t.pLeads:null;
+  const clean=list.filter(s=>s.leads>0&&!s.broken);
+  const cheapest=clean.slice().sort((a,b)=>a.cpl-b.cpl)[0];
+  const flagged=list.filter(s=>s.active&&["broken","nophone","low"].includes(s.track));
+
+  $("kpis").innerHTML=`
+    <div class="kpi green"><div class="v">${fmtN(t.leads)}</div><div class="l">Leads (form + phone)</div><div class="d">${arrow(leadsD,false)} vs prev</div></div>
+    <div class="kpi"><div class="v">${fmt$(t.spend)}</div><div class="l">Spend (${regionCur()})</div><div class="d">${arrow(t.pSpend?(t.spend-t.pSpend)/t.pSpend:null,false)} vs prev</div></div>
+    <div class="kpi hero"><div class="v">${fmt$2(cpl)}</div><div class="l">Blended cost / lead</div><div class="d">${arrow(cplD,true)} vs prev</div></div>
+    <div class="kpi"><div class="v">${fmtN(t.leads/bounds().L)}</div><div class="l">Leads / day</div></div>
+    <div class="kpi"><div class="v">${cheapest?fmt$2(cheapest.cpl):"—"}</div><div class="l">Best (clean): ${cheapest?esc(cheapest.store):"—"}</div></div>
+    <div class="kpi flag"><div class="v">${flagged.length}</div><div class="l">Tracking issues</div></div>`;
+
+  const broken=flagged.filter(s=>s.track==="broken").map(s=>s.store);
+  const nophone=flagged.filter(s=>s.track==="nophone").length;
+  if(broken.length||nophone){
+    $("flagbanner").style.display="block";
+    $("flagbanner").innerHTML="⚠️ "+
+      (broken.length?("<b>Broken tracking:</b> "+broken.map(esc).join(", ")+". "):"")+
+      (nophone?("<b>"+nophone+"</b> store"+(nophone>1?"s":"")+" not tracking phone-call leads — cost/lead overstated there."):"");
+  } else $("flagbanner").style.display="none";
+
+  renderTable(list,t,cpl);
+  renderCharts(list);
+  renderOpportunity();
+  renderDrivers(list,t);
+  renderDevice();
+  renderDow();
+}
+
+function renderDrivers(list,t){
+  const gCPC = t.clicks? t.spend/t.clicks : null;
+  const gCVR = t.clicks? t.leads/t.clicks : null;
+  const rows=list.filter(s=>s.active).map(s=>{
+    const cpc=s.clicks?s.spend/s.clicks:null;
+    const cvr=s.clicks?s.leads/s.clicks:null;
+    let diag,cls;
+    if(s.broken){ diag="Tracking broken — n/a"; cls="broken"; }
+    else if(cpc==null||cvr==null||gCPC==null){ diag="—"; cls="max"; }
+    else {
+      const hi=cpc>gCPC*1.25, lo=cvr<gCVR*0.75;
+      if(hi&&lo){ diag="Both — pricey clicks + weak conversion"; cls="broken"; }
+      else if(hi){ diag="Bidding — clicks are pricey"; cls="capped"; }
+      else if(lo){ diag="Conversion — site/offer converts low"; cls="rank"; }
+      else { diag="Healthy"; cls="ok"; }
+    }
+    return {s,cpc,cvr,diag,cls};
+  }).sort((a,b)=>(b.s.cpl==null?-1:b.s.cpl)-(a.s.cpl==null?-1:a.s.cpl));
+  const REC={ok:["#dcfce7","#15803d"],capped:["#ffedd5","#9a3412"],rank:["#dbeafe","#1e40af"],broken:["#fee2e2","#b91c1c"],max:["#f3f4f6","#9ca3af"]};
+  $("driver-body").innerHTML=rows.map(r=>{
+    const [bg,fg]=REC[r.cls];
+    return `<tr style="cursor:pointer" data-store="${esc(r.s.store)}"><td>${esc(r.s.store)}</td>
+      <td>${r.s.broken?'<span class="muted">n/a</span>':fmt$2(r.s.cpl)}</td>
+      <td>${r.cpc!=null?fmt$2(r.cpc):'—'}</td>
+      <td>${r.cvr!=null?pct(r.cvr):'—'}</td>
+      <td style="text-align:left"><span class="badge" style="background:${bg};color:${fg}">${esc(r.diag)}</span></td></tr>`;
+  }).join("");
+  $("driver-body").querySelectorAll("tr[data-store]").forEach(tr=>tr.onclick=()=>openDrill(tr.dataset.store));
+  const bid=rows.filter(r=>r.cls==="capped").length, conv=rows.filter(r=>r.cls==="rank").length, both=rows.filter(r=>r.cls==="broken"&&!r.s.broken).length;
+  $("driver-summary").innerHTML=`Group average: <b>${fmt$2(gCPC)}</b>/click at a <b>${pct(gCVR)}</b> lead rate = ${fmt$2(t.leads?t.spend/t.leads:null)}/lead. `+
+    `Of the stores above: <b>${bid}</b> are bidding-limited (pricey clicks), <b>${conv}</b> are conversion-limited (weak landing/offer)${both?`, <b>${both}</b> both`:""}. Fix the bidding ones with bids/negatives; fix the conversion ones on the website.`;
+}
+
+function devAgg(rows){
+  const m={};
+  rows.forEach(r=>{ if(!rowInRegion(r.currency))return; (m[r.device] ||= {device:r.device,spend:0,conv:0,clicks:0}); m[r.device].spend+=amt(r.cost,r.currency); m[r.device].conv+=r.conv; m[r.device].clicks+=r.clicks; });
+  return Object.values(m).sort((a,b)=>b.spend-a.spend);
+}
+const DEV_SHORT={"Mobile devices with full browsers":"Mobile","Computers":"Desktop","Tablets with full browsers":"Tablet","Devices streaming video content to TV screens":"TV screens","Other":"Other"};
+function renderDevice(){
+  const list=devAgg(deviceRows); const tot=list.reduce((a,d)=>a+d.spend,0);
+  $("device-body").innerHTML=list.filter(d=>d.spend>=1).map(d=>`<tr>
+    <td>${esc(DEV_SHORT[d.device]||d.device)}</td><td>${fmt$(d.spend)}</td><td>${fmtN(d.conv)}</td>
+    <td>${fmt$2(d.conv?d.spend/d.conv:null)}</td><td>${tot?Math.round(d.spend/tot*100)+"%":"—"}</td></tr>`).join("");
+}
+const DOW_ORDER=["0 Sunday","1 Monday","2 Tuesday","3 Wednesday","4 Thursday","5 Friday","6 Saturday"];
+function renderDow(){
+  const m={};
+  dowRows.forEach(r=>{ if(!rowInRegion(r.currency))return; (m[r.dow] ||= {dow:r.dow,spend:0,conv:0}); m[r.dow].spend+=amt(r.cost,r.currency); m[r.dow].conv+=r.conv; });
+  const list=DOW_ORDER.filter(d=>m[d]).map(d=>m[d]);
+  const cpls=list.map(d=>d.conv?d.spend/d.conv:Infinity);
+  const min=Math.min(...cpls), max=Math.max(...cpls.filter(isFinite));
+  $("dow-body").innerHTML=list.map(d=>{
+    const c=d.conv?d.spend/d.conv:null;
+    let col=""; if(c!=null){ if(c<=min*1.05) col="color:#15803d;font-weight:700"; else if(c>=max*0.95) col="color:#b91c1c;font-weight:700"; }
+    return `<tr><td>${esc(d.dow.replace(/^\d\s/,""))}</td><td>${fmt$(d.spend)}</td><td>${fmtN(d.conv)}</td><td style="${col}">${fmt$2(c)}</td></tr>`;
+  }).join("");
+}
+
+function agg30(){
+  const c=daysAgo(30); const m={};
+  NAMES.filter(inRegion).forEach(n=>m[n]={store:n,spend:0,leads:0});
+  spendRows.forEach(r=>{ if(r.date<c||!inRegion(r.store))return; (m[r.store] ||= {store:r.store,spend:0,leads:0}); m[r.store].spend+=amt(r.cost,r.currency); });
+  Object.keys(leadMap).forEach(k=>{ const [s,d]=k.split("|"); if(d<c||!inRegion(s))return; (m[s] ||= {store:s,spend:0,leads:0}); m[s].leads+=leadMap[k]; });
+  return m;
+}
+function renderOpportunity(){
+  const a30=agg30();
+  let tS=0,tL=0; Object.values(a30).forEach(s=>{tS+=s.spend;tL+=s.leads;});
+  const blended=tL?tS/tL:null;
+  const rows=NAMES.filter(inRegion).map(n=>{
+    const a=a30[n]||{spend:0,leads:0}; const cpl=a.leads?a.spend/a.leads:null;
+    const is=isMap[n]||{}; const bl=is.budgetLost, rl=is.rankLost, sis=is.imprShare;
+    let rec="nodata", recTxt="no search data";
+    if(bl!=null){
+      if(bl>=0.10 && cpl!=null && blended!=null && cpl<=blended*1.15){ rec="raise"; recTxt="Raise budget"; }
+      else if(bl>=0.10){ rec="capped"; recTxt="Capped — pricey, raise carefully"; }
+      else if(bl>=0.05 && cpl!=null && blended!=null && cpl<=blended){ rec="grow"; recTxt="Some room to grow"; }
+      else if(rl!=null && rl>=0.50 && bl<0.05){ rec="rank"; recTxt="Rank-limited — optimize, don’t add budget"; }
+      else { rec="max"; recTxt="Near capacity"; }
+    }
+    return {store:n,cpl,sis,bl,rl,rec,recTxt,active:(a.leads>0||a.spend>0)};
+  }).filter(r=>r.active || r.bl!=null);
+  rows.sort((x,y)=> (y.bl==null?-1:y.bl) - (x.bl==null?-1:x.bl));
+
+  const REC={raise:["#dcfce7","#15803d"],grow:["#ecfccb","#4d7c0f"],capped:["#ffedd5","#9a3412"],
+    rank:["#dbeafe","#1e40af"],max:["#f3f4f6","#6b7280"],nodata:["#f3f4f6","#9ca3af"]};
+  $("opp-body").innerHTML=rows.map(r=>{
+    const [bg,fg]=REC[r.rec];
+    const tag=`<span class="badge" style="background:${bg};color:${fg}">${esc(r.recTxt)}</span>`;
+    const blCell = r.bl==null?'<span class="muted">—</span>' : (r.rec==="raise"||r.rec==="grow"?`<b style="color:#15803d">${pct(r.bl)}</b>`:pct(r.bl));
+    return `<tr style="cursor:pointer" data-store="${esc(r.store)}"><td>${esc(r.store)}</td>
+      <td>${r.cpl!=null?fmt$2(r.cpl):'<span class="muted">—</span>'}</td>
+      <td>${r.sis!=null?pct(r.sis):'<span class="muted">—</span>'}</td>
+      <td>${blCell}</td><td>${r.rl!=null?pct(r.rl):'<span class="muted">—</span>'}</td>
+      <td style="text-align:left">${tag}</td></tr>`;
+  }).join("");
+  $("opp-body").querySelectorAll("tr[data-store]").forEach(tr=> tr.onclick=()=>openDrill(tr.dataset.store));
+
+  const raise=rows.filter(r=>r.rec==="raise");
+  if(raise.length){
+    const top=raise[0];
+    $("opp-summary").innerHTML=`<b>${raise.length} store${raise.length>1?"s":""} look budget-capped with at-or-below-average cost per lead</b> — the clearest candidates to raise daily budget: ${raise.map(r=>esc(r.store)).join(", ")}. Standout: <b>${esc(top.store)}</b> is losing <b>${pct(top.bl)}</b> of search impressions to budget at ${fmt$2(top.cpl)}/lead.`;
+  } else { $("opp-summary").innerHTML="No clearly budget-capped, low-cost stores this period — most lost share is to ad rank (an optimization problem, not a budget one)."; }
+}
+
+const TRACK_BADGE={ok:'<span class="badge ok">OK</span>',low:'<span class="badge low">low</span>',
+  nophone:'<span class="badge nophone">no phone</span>',broken:'<span class="badge broken">broken</span>',
+  idle:'<span class="badge" style="background:#f3f4f6;color:#9ca3af">no spend</span>'};
+
+function renderTable(list,t,blended){
+  const {k,dir}=storeSort;
+  const arr=list.slice().sort((a,b)=>{ let x=a[k],y=b[k];
+    if(k==="store"||k==="track") return String(x).localeCompare(String(y))*dir;
+    x=x==null?-Infinity:x; y=y==null?-Infinity:y; return (x-y)*dir; });
+  $("store-body").innerHTML=arr.map(s=>{
+    const usd=storeCurrency[s.store]==="USD"?'<span class="badge usd">USD</span>':'';
+    return `<tr class="${s.broken?'broken':''}" data-store="${esc(s.store)}"><td>${esc(s.store)}${usd}</td>
+      <td>${fmt$(s.spend)}</td><td>${fmtN(s.leads)}</td><td>${pct(s.rate)}</td>
+      <td>${s.broken?'<span class="muted">n/a</span>':fmt$2(s.cpl)}</td>
+      <td>${s.broken?'—':arrow(s.cplDelta,true)}</td><td>${TRACK_BADGE[s.track]||""}</td></tr>`;
+  }).join("");
+  $("store-body").querySelectorAll("tr[data-store]").forEach(tr=> tr.onclick=()=>openDrill(tr.dataset.store));
+  $("store-foot").innerHTML=`<tr><td>All stores</td><td>${fmt$(t.spend)}</td><td>${fmtN(t.leads)}</td>
+    <td>${pct(t.clicks?t.leads/t.clicks:null)}</td><td>${fmt$2(blended)}</td><td></td><td></td></tr>`;
+}
+
+function renderCharts(list){
+  const {curStart}=bounds();
+  const byDate={};
+  spendRows.forEach(r=>{ if(r.date<curStart||!inRegion(r.store))return; (byDate[r.date] ||= {spend:0,leads:0}); byDate[r.date].spend+=amt(r.cost,r.currency); });
+  Object.keys(leadMap).forEach(k=>{ const [s,d]=k.split("|"); if(d<curStart||!inRegion(s))return; (byDate[d] ||= {spend:0,leads:0}); byDate[d].leads+=leadMap[k]; });
+  const dates=Object.keys(byDate).sort();
+  const labels=dates.map(d=>d.slice(5));
+  const spend=dates.map(d=>Math.round(byDate[d].spend));
+  const leads=dates.map(d=>Math.round(byDate[d].leads*10)/10);
+  const grid="#eef0f2";
+  if(dailyChart)dailyChart.destroy();
+  dailyChart=new Chart($("dailyChart"),{
+    data:{labels,datasets:[
+      {type:"bar",label:"Leads",data:leads,backgroundColor:"#86efac",borderColor:"#16a34a",yAxisID:"y"},
+      {type:"line",label:"Spend ("+regionCur()+")",data:spend,borderColor:"#2563eb",backgroundColor:"#2563eb22",yAxisID:"y1",tension:.25,pointRadius:0,fill:true}]},
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{position:"bottom",labels:{boxWidth:12,font:{size:11}}}},
+      scales:{y:{beginAtZero:true,grid:{color:grid},title:{display:true,text:"leads",font:{size:10}}},
+        y1:{beginAtZero:true,position:"right",grid:{display:false},ticks:{callback:v=>"$"+v},title:{display:true,text:"spend CAD",font:{size:10}}},
+        x:{grid:{display:false},ticks:{maxTicksLimit:15}}}}
+  });
+  const sl=list.filter(s=>s.cpl!=null&&!s.broken).sort((a,b)=>b.cpl-a.cpl);
+  const blended=(list.reduce((a,s)=>a+s.spend,0))/(list.reduce((a,s)=>a+s.leads,0)||1);
+  if(cplChart)cplChart.destroy();
+  cplChart=new Chart($("cplChart"),{
+    type:"bar",
+    data:{labels:sl.map(s=>s.store),datasets:[{label:"Cost / lead ("+regionCur()+")",data:sl.map(s=>Math.round(s.cpl*100)/100),
+      backgroundColor:sl.map(s=>s.track==="nophone"?"#fdba74":s.cpl>blended*1.5?"#fca5a5":s.cpl<blended*0.6?"#86efac":"#93c5fd")}]},
+    options:{indexAxis:"y",responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>"$"+ctx.parsed.x.toFixed(2)+" / lead"}}},
+      scales:{x:{beginAtZero:true,grid:{color:grid},ticks:{callback:v=>"$"+v}},y:{grid:{display:false},ticks:{font:{size:10}}}}}
+  });
+}
+
+// ---------- drill-down ----------
+function openDrill(store){
+  const id=ID_BY_NAME[store]; if(!id) return;
+  $("m-title").textContent=store;
+  const st=aggByStore().find(s=>s.store===store)||{};
+  $("m-track").innerHTML=TRACK_BADGE[st.track]||"";
+  $("overlay").classList.add("on");
+  const cur=storeCurrency[store]||"CAD";
+  const list=(campByAcct[id]||[]).map(c=>({camp:c.camp,spend:amt(c.cost,cur),clicks:c.clicks,leads:c.leads}))
+    .map(c=>({...c,cpl:c.leads?c.spend/c.leads:null})).sort((a,b)=>b.spend-a.spend);
+  const waste=(termByAcct[id]||[]).map(w=>({term:w.term,spend:amt(w.cost,cur),clicks:w.clicks,conv:w.conv}))
+    .filter(w=>w.conv===0 && w.spend>=4).sort((a,b)=>b.spend-a.spend).slice(0,120);
+  const wasteTotal=waste.reduce((a,w)=>a+w.spend,0);
+  renderDrill(store,st,{list,waste,wasteTotal});
+}
+function renderDrill(store,st,data){
+  const list=data.list, waste=data.waste||[], wasteTotal=data.wasteTotal||0;
+  const tot=list.reduce((a,c)=>{a.spend+=c.spend;a.leads+=c.leads;a.clicks+=c.clicks;return a;},{spend:0,leads:0,clicks:0});
+  const usd=storeCurrency[store]==="USD";
+  let html=`<div class="mini">
+    <div><b>${fmt$(tot.spend)}</b>spend (${regionCur()})${(region==="all"&&usd)?' · USD@'+fx:''}</div>
+    <div><b>${fmtN(tot.leads)}</b>leads</div>
+    <div><b>${fmt$2(tot.leads?tot.spend/tot.leads:null)}</b>cost / lead</div>
+    <div><b>${pct(tot.clicks?tot.leads/tot.clicks:null)}</b>lead rate</div>
+    <div><b>${list.length}</b>campaigns</div></div>`;
+  if(st.track==="broken") html+='<div class="note" style="margin-top:0;margin-bottom:10px">⚠️ Lead tracking on this store looks broken, so these per-campaign cost/lead figures aren’t reliable.</div>';
+  if(st.track==="nophone") html+='<div class="note" style="margin-top:0;margin-bottom:10px">⚠️ Phone-call leads aren’t tracked here, so campaign leads are form-only (undercounted).</div>';
+  html+=`<table><thead><tr><th>Campaign</th><th>Spend</th><th>Clicks</th><th>Leads</th><th>$/Lead</th></tr></thead><tbody>`;
+  html+=list.map(c=>`<tr style="cursor:default"><td>${esc(c.camp)}</td><td>${fmt$(c.spend)}</td><td>${fmtN(c.clicks)}</td><td>${fmtN(c.leads)}</td><td>${fmt$2(c.cpl)}</td></tr>`).join("")||`<tr><td colspan="5" class="muted" style="text-align:center;padding:18px">No campaign data in this period.</td></tr>`;
+  html+=`</tbody></table>`;
+  html+=`<h3 style="font-size:13px;text-transform:uppercase;letter-spacing:.04em;color:#6b7280;margin:20px 0 8px">Suggested negative keywords <span style="text-transform:none;font-weight:400;color:#9ca3af">· from zero-lead search terms, ${fmt$(wasteTotal)} spent</span></h3>`;
+  if(st.track==="broken"){
+    html+=`<div class="note" style="margin-top:0">⚠️ Lead tracking on this store looks broken — every term reads “zero leads,” so I can’t tell real waste from a tracking gap. Fix tracking first; negatives here would be guesswork.</div>`;
+  } else if(!waste.length){
+    html+=`<div class="note" style="margin-top:0">No zero-lead search-term spend ≥ $4 found — or this store runs mostly PMax/Display, which doesn’t expose search terms to negate.</div>`;
+  } else {
+    const buckets={market:[],junk:[],subprime:[],other:[]};
+    waste.forEach(w=>buckets[categorize(w.term)].push(w));
+    NEG_RULES.concat([{key:"other",label:"Other zero-lead terms — decide case by case",safe:null}]).forEach(rule=>{
+      const items=buckets[rule.key]; if(!items||!items.length) return;
+      const sp=items.reduce((a,w)=>a+w.spend,0);
+      const id="neg-"+rule.key;
+      const tone = rule.safe===true ? "#15803d" : rule.safe===false ? "#9a3412" : "#6b7280";
+      const tag = rule.safe===true ? '<span class="badge ok">safe to block</span>' : rule.safe===false ? '<span class="badge nophone">review first</span>' : '<span class="badge" style="background:#f3f4f6;color:#6b7280">judgment</span>';
+      html+=`<div style="margin:14px 0 6px"><b style="color:${tone}">${esc(rule.label)}</b> ${tag} <span class="muted">· ${items.length} terms · ${fmt$(sp)}</span></div>`;
+      html+=`<table><tbody>`+items.slice(0,15).map(w=>`<tr style="cursor:default"><td style="text-align:left">${esc(w.term)}</td><td style="width:80px">${fmt$2(w.spend)}</td><td style="width:60px">${fmtN(w.clicks)} clk</td></tr>`).join("")+`</tbody></table>`;
+      if(rule.safe!==false){
+        html+=`<div class="flex" style="margin:6px 0 4px"><button class="ghost" onclick="copyNeg('${id}',this)">Copy ${items.length} as negatives</button><span class="muted" style="font-size:11px">paste into Google Ads → add as phrase or exact negatives</span></div>`;
+        html+=`<textarea id="${id}" readonly style="width:100%;height:54px;font-size:11px;border:1px solid #e5e7eb;border-radius:7px;padding:6px;color:#374151;resize:vertical">${esc(items.map(w=>w.term).join("\n"))}</textarea>`;
+      } else {
+        html+=`<div class="flex" style="margin:6px 0 4px"><button class="ghost" onclick="copyNeg('${id}',this)">Copy ${items.length} (only if not wanted)</button><span class="muted" style="font-size:11px">these can be real subprime leads — confirm before blocking</span></div>`;
+        html+=`<textarea id="${id}" readonly style="width:100%;height:54px;font-size:11px;border:1px solid #fed7aa;border-radius:7px;padding:6px;color:#9a3412;resize:vertical">${esc(items.map(w=>w.term).join("\n"))}</textarea>`;
+      }
+    });
+    html+=`<div class="note" style="margin-top:12px"><b>How to read this:</b> “safe to block” = competitors, jobs, parts, free-car hunters — almost never buyers. “Review first” = no-money/subprime; some stores <i>want</i> these, so only block if you don’t. Terms are this store’s last-period search queries with spend but no conversion of any kind${st.track==="nophone"?" (note: phone leads aren’t tracked here, so a term that drove only calls would wrongly look dead — lean cautious)":""}.</div>`;
+  }
+  $("m-body").innerHTML=html;
+}
+$("m-close").onclick=()=>$("overlay").classList.remove("on");
+$("overlay").onclick=e=>{ if(e.target===$("overlay")) $("overlay").classList.remove("on"); };
+
+$("period-seg").addEventListener("click",e=>{ if(e.target.tagName!=="BUTTON")return;
+  period=e.target.dataset.p; localStorage.setItem(PKEY,period);
+  [...$("period-seg").children].forEach(b=>b.classList.toggle("on",b===e.target)); render(); });
+$("region-seg").addEventListener("click",e=>{ if(e.target.tagName!=="BUTTON")return;
+  region=e.target.dataset.r; localStorage.setItem(RKEY,region);
+  [...$("region-seg").children].forEach(b=>b.classList.toggle("on",b===e.target)); render(); });
+$("fx").addEventListener("input",e=>{ const v=parseFloat(e.target.value); if(v>0){fx=v;localStorage.setItem(FXKEY,v);render();} });
+document.querySelectorAll("#store-table th[data-k]").forEach(th=>th.onclick=()=>{const k=th.dataset.k;storeSort={k,dir:storeSort.k===k?-storeSort.dir:-1};render();});
+$("export-btn").onclick=()=>{
+  const list=aggByStore();
+  const rows=[["store","spend_cad","leads","clicks","lead_rate","cost_per_lead","cpl_vs_prev_pct","phone_tracked","tracking"]]
+    .concat(list.map(s=>[s.store,s.spend.toFixed(2),s.leads.toFixed(2),s.clicks,(s.rate!=null?(s.rate*100).toFixed(2)+"%":""),(s.broken?"":(s.cpl!=null?s.cpl.toFixed(2):"")),(s.cplDelta!=null?(s.cplDelta*100).toFixed(0)+"%":""),(s.phone>0?"yes":"no"),s.track]));
+  const csv=rows.map(r=>r.map(x=>`"${String(x).replace(/"/g,'""')}"`).join(",")).join("\n");
+  const a=document.createElement("a"); a.href=URL.createObjectURL(new Blob([csv],{type:"text/csv"}));
+  a.download="leads-cost-"+periodLabel().replace(/ /g,"-")+"-"+today()+".csv"; a.click();
+};
+
+$("fx").value=fx;
+[...$("period-seg").children].forEach(b=>b.classList.toggle("on",b.dataset.p===period));
+[...$("region-seg").children].forEach(b=>b.classList.toggle("on",b.dataset.r===region));
+
+async function boot(){
+  try{
+    await loadAll();
+    const maxD=spendRows.reduce((m,r)=>r.date>m?r.date:m,"");
+    $("freshness").innerHTML=`<span class="dot"></span>${STORES.length} stores · through ${maxD||"?"}`;
+    $("banner").style.display="none";
+    render();
+  }catch(err){
+    $("banner").className="banner err";
+    $("banner").innerHTML="⚠️ Couldn't load data: "+esc(err.message);
+  }
+}
+function showApp(){ $("login").style.display="none"; $("wrap").style.display="block"; boot(); }
+function showLogin(){ $("wrap").style.display="none"; $("login").style.display="block"; }
+$("login-btn").onclick=async()=>{
+  const email=$("login-email").value.trim(); if(!email) return;
+  $("login-msg").textContent="Sending…";
+  const {error}=await sb.auth.signInWithOtp({email,options:{emailRedirectTo:window.location.href}});
+  $("login-msg").textContent=error?("Error: "+error.message):"Check your email for a login link.";
+};
+sb.auth.onAuthStateChange((_e,session)=>{ session?showApp():showLogin(); });
+sb.auth.getSession().then(({data})=>{ data.session?showApp():showLogin(); });
+</script>
+</body>
+</html>
