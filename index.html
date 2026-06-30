@@ -94,6 +94,7 @@ tfoot td { font-weight:700; border-top:2px solid #e5e7eb; border-bottom:none; }
   </div>
 </div>
 <div class="wrap" id="wrap" style="display:none">
+<button id="admin-btn" style="display:none;position:fixed;top:14px;right:14px;z-index:60;background:#111827;color:#fff;border:none;border-radius:8px;padding:8px 13px;font-weight:600;font-size:12.5px;cursor:pointer">+ Add login</button>
   <h1>Lead Cost Command Center</h1>
   <p class="sub">401 Auto Group · <b>live from Google Ads</b> via Supermetrics · leads = form + phone · spend in CAD · click any store for campaign detail</p>
 
@@ -197,6 +198,23 @@ tfoot td { font-weight:700; border-top:2px solid #e5e7eb; border-bottom:none; }
     </div>
   </div>
 
+<div class="overlay" id="admin-overlay">
+  <div class="modal" style="max-width:420px">
+    <div class="modal-h"><h3 style="margin:0">Create a login</h3><button class="x" id="admin-close">✕</button></div>
+    <div class="modal-b">
+      <label>Email</label>
+      <input id="au-email" type="email" placeholder="person@401auto.ca" style="width:100%;padding:9px;border:1px solid #d1d5db;border-radius:7px;margin:2px 0 12px">
+      <label>Password</label>
+      <div style="display:flex;gap:8px;margin-top:2px">
+        <input id="au-pass" type="text" placeholder="password" style="flex:1;padding:9px;border:1px solid #d1d5db;border-radius:7px">
+        <button class="ghost" id="au-gen">Generate</button>
+      </div>
+      <button id="au-create" style="width:100%;margin-top:14px;padding:10px;background:#2563eb;color:#fff;border:none;border-radius:8px;font-weight:600;cursor:pointer">Create login</button>
+      <p id="au-msg" style="font-size:12.5px;margin:12px 0 0;min-height:16px"></p>
+      <div class="note" style="margin-top:8px">Creates a confirmed login instantly — no email sent. Share the email + password with the person; they sign in right here.</div>
+    </div>
+  </div>
+</div>
 <div class="overlay" id="overlay">
   <div class="modal">
     <div class="modal-h"><h3 id="m-title">Store</h3><span id="m-track"></span><button class="x" id="m-close">✕</button></div>
@@ -643,6 +661,7 @@ async function boot(){
     $("freshness").innerHTML=`<span class="dot"></span>${STORES.length} stores · through ${maxD||"?"}`;
     $("banner").style.display="none";
     render();
+    setupAdmin();
   }catch(err){
     $("banner").className="banner err";
     $("banner").innerHTML="⚠️ Couldn't load data: "+esc(err.message);
@@ -658,6 +677,31 @@ $("login-btn").onclick=async()=>{
   if(error) $("login-msg").textContent="Error: "+error.message;
 };
 $("login-pass").addEventListener("keydown",e=>{ if(e.key==="Enter") $("login-btn").click(); });
+const ADMIN_EMAILS=["marty@401auto.ca"];
+async function setupAdmin(){
+  try{ const {data}=await sb.auth.getSession();
+    const email=data&&data.session&&data.session.user&&data.session.user.email;
+    if(email && ADMIN_EMAILS.indexOf(email.toLowerCase())!==-1) $("admin-btn").style.display="block";
+  }catch(e){}
+}
+$("admin-btn").onclick=()=>$("admin-overlay").classList.add("on");
+$("admin-close").onclick=()=>$("admin-overlay").classList.remove("on");
+$("admin-overlay").onclick=e=>{ if(e.target===$("admin-overlay")) $("admin-overlay").classList.remove("on"); };
+$("au-gen").onclick=()=>{ const c="ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789"; let p=""; for(let i=0;i<12;i++) p+=c[Math.floor(Math.random()*c.length)]; $("au-pass").value=p; };
+$("au-create").onclick=async()=>{
+  const email=$("au-email").value.trim(), password=$("au-pass").value;
+  if(!email||!password){ $("au-msg").textContent="Enter an email and password."; return; }
+  $("au-msg").style.color="#6b7280"; $("au-msg").textContent="Creating…";
+  const {data}=await sb.auth.getSession();
+  const token=data&&data.session&&data.session.access_token;
+  try{
+    const r=await fetch("/api/create-user",{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+token},body:JSON.stringify({email,password})});
+    const j=await r.json().catch(()=>({}));
+    if(!r.ok){ $("au-msg").style.color="#b91c1c"; $("au-msg").textContent="Error: "+(j.error||r.status); return; }
+    $("au-msg").style.color="#15803d"; $("au-msg").innerHTML="✓ Created. Share this login — "+esc(email)+" / "+esc(password);
+    $("au-email").value="";
+  }catch(err){ $("au-msg").style.color="#b91c1c"; $("au-msg").textContent="Error: "+err.message; }
+};
 sb.auth.onAuthStateChange((_e,session)=>{ session?showApp():showLogin(); });
 sb.auth.getSession().then(({data})=>{ data.session?showApp():showLogin(); });
 </script>
